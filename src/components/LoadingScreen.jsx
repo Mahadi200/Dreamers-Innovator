@@ -180,14 +180,18 @@ export default function LoadingScreen({ onComplete }) {
           transition={{ duration: 2, delay: 0.8 }}
         />
         
-        {/* Center crosshair */}
+        {/* Centered Round Logo using logo.jpeg */}
         <motion.div 
-          className="absolute text-white/20 font-serif tracking-widest text-[10px]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 0.4, 0.2] }}
-          transition={{ duration: 2, delay: 1 }}
+          className="absolute w-28 h-28 rounded-full border border-white/20 bg-black overflow-hidden flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 50, delay: 0.3 }}
         >
-          SYS // OK
+          <img 
+            src="/logo.jpeg" 
+            alt="Dreamers Innovator Logo" 
+            className="w-full h-full object-cover rounded-full" 
+          />
         </motion.div>
 
         {/* Circular Letters Container */}
