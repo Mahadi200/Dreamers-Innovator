@@ -49,6 +49,9 @@ export default function Footer({ onNavigate, onNavigateProject }) {
                 <button onClick={() => handleNav('home')} className="hover:text-white transition-colors duration-300">Home</button>
               </li>
               <li>
+                <button onClick={() => handleNav('dashboard')} className="hover:text-white transition-colors duration-300">Command Center</button>
+              </li>
+              <li>
                 <button onClick={() => handleNav('media')} className="hover:text-white transition-colors duration-300">Media Showcase</button>
               </li>
               <li>

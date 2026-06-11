@@ -320,6 +320,13 @@ export default function ProjectLanding({ projectId, onNavigate, onNavigateProjec
           </button>
           
           <button 
+            onClick={() => onNavigateProject(projectId, 'dashboard')}
+            className="border border-white bg-white text-black px-6 py-3 font-serif text-[10px] uppercase tracking-[0.2em] hover:bg-transparent hover:text-white transition-all duration-300 flex items-center gap-2"
+          >
+            Open Project Dashboard
+            <Cpu className="w-3.5 h-3.5" />
+          </button>
+          <button 
             onClick={() => onNavigate('media')}
             className="border border-white/10 bg-white/5 text-white px-6 py-3 font-serif text-[10px] uppercase tracking-[0.2em] hover:border-white/50 hover:bg-white/10 transition-all duration-300 flex items-center gap-2"
           >

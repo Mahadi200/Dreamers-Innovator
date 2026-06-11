@@ -111,6 +111,15 @@ export default function Header({ activePage, activeProject, onNavigate, onNaviga
           </div>
 
           <button 
+            onClick={() => handleNavClick('dashboard')}
+            className={`font-serif text-[13px] uppercase tracking-[0.2em] transition-colors duration-300 hover:text-white ${
+              activePage === 'dashboard' ? 'text-white border-b border-white/40 pb-1' : 'text-white/50'
+            }`}
+          >
+            Command Center
+          </button>
+
+          <button 
             onClick={() => handleNavClick('media')}
             className={`font-serif text-[13px] uppercase tracking-[0.2em] transition-colors duration-300 hover:text-white ${
               activePage === 'media' ? 'text-white border-b border-white/40 pb-1' : 'text-white/50'
@@ -184,6 +193,15 @@ export default function Header({ activePage, activeProject, onNavigate, onNaviga
               ))}
             </div>
           </div>
+
+          <button 
+            onClick={() => handleNavClick('dashboard')}
+            className={`font-serif text-[15px] uppercase tracking-[0.25em] py-2 text-left ${
+              activePage === 'dashboard' ? 'text-white font-normal' : 'text-white/50'
+            }`}
+          >
+            Command Center
+          </button>
 
           <button 
             onClick={() => handleNavClick('media')}

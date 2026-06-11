@@ -8,15 +8,16 @@ import ProjectLanding from './pages/ProjectLanding';
 import Media from './pages/Media';
 import Blog from './pages/Blog';
 import Contact from './pages/Contact';
+import Dashboard from './pages/Dashboard';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [activePage, setActivePage] = useState('home');
   const [activeProject, setActiveProject] = useState(null);
 
-  const handleNavigateProject = (projectId) => {
+  const handleNavigateProject = (projectId, page = 'project') => {
     setActiveProject(projectId);
-    setActivePage('project');
+    setActivePage(page);
   };
 
   const pageVariants = {
@@ -43,6 +44,8 @@ export default function App() {
         return <Blog />;
       case 'contact':
         return <Contact />;
+      case 'dashboard':
+        return <Dashboard activeProject={activeProject} onNavigateProject={handleNavigateProject} />;
       default:
         return <Home onNavigate={setActivePage} onNavigateProject={handleNavigateProject} />;
     }
