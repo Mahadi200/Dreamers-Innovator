@@ -676,6 +676,9 @@ function RoverDashboard({ addNotification, notifications, onNavigateProject }) {
    2. JOLJAN ASV RESCUE DASHBOARD
    ========================================================================= */
 function JoljanDashboard({ addNotification, notifications, onNavigateProject }) {
+  // Model Toggle State
+  const [asvModel, setAsvModel] = useState('1.0'); // '1.0' or 'mini'
+
   // Navigation & Location States
   const [activeAlertIndex, setActiveAlertIndex] = useState(0);
   const [isDispatched, setIsDispatched] = useState(false);
@@ -683,54 +686,168 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
   const [etaText, setEtaText] = useState('N/A');
 
   // Payload release status
-  const [cargoInventory, setCargoInventory] = useState({
+  const maxCargo = asvModel === '1.0' ? {
     firstAid: 15,
     foodPackets: 25,
     medicine: 20,
-    lifeJackets: 12
-  });
+    lifeJackets: 12,
+    commsBeacon: 8
+  } : {
+    firstAid: 5,
+    foodPackets: 10,
+    medicine: 8,
+    lifeJackets: 4,
+    commsBeacon: 2
+  };
+
+  const [cargoInventory, setCargoInventory] = useState(maxCargo);
   const [dropMessage, setDropMessage] = useState(null);
 
-  // Environmental sensor logs
+  useEffect(() => {
+    setCargoInventory(maxCargo);
+  }, [asvModel]);
+
+  // Environmental and Fisheries sensor logs
   const [waterDepth, setWaterDepth] = useState(4.2);
   const [waterTemp, setWaterTemp] = useState(24.5);
   const [turbidity, setTurbidity] = useState(12.4); // NTU
   const [dissolvedOxygen, setDissolvedOxygen] = useState(6.8); // mg/L
   const [waterWQI, setWaterWQI] = useState(78); // WQI 0-100
+  const [waterPH, setWaterPH] = useState(7.4);
+  const [waterTDS, setWaterTDS] = useState(220); // ppm
+  const [ammonia, setAmmonia] = useState(0.02); // mg/L
+  const [alkalinity, setAlkalinity] = useState(115); // ppm
+  const [fishStress, setFishStress] = useState('NORMAL'); // 'NORMAL', 'WARNING', 'CRITICAL'
 
   // Sonar terrain array (simulated contour map)
   const [sonarData, setSonarData] = useState([12, 14, 15, 13, 11, 10, 9, 8, 11, 13, 14, 15, 12, 10, 8, 6, 7, 9, 11, 13]);
 
+  // LiDAR obstacle avoidance states
+  const [thrusterThrottle, setThrusterThrottle] = useState(85);
+  const [obstacleStatus, setObstacleStatus] = useState('CLEAR'); // 'CLEAR', 'DETECTED', 'AVOIDING', 'PASSED'
+  const [obstacleDistance, setObstacleDistance] = useState(0);
+  const [avoidanceYawOffset, setAvoidanceYawOffset] = useState(0);
+
+  // Environmental analysis report overlay
+  const [reportOpen, setReportOpen] = useState(false);
+
+  // Camera View: 'rescue' or 'fishery'
+  const [cameraView, setCameraView] = useState('rescue');
+
   // Rescue Alerts List
   const rescueAlerts = [
-    { id: 'REC-091', region: 'Sylhet (Gowainghat)', coordinates: '25.1054° N, 91.9803° E', priority: 'CRITICAL', threat: 'Family of 5 stranded on rural rooftop', suppliesNeeded: 'Food, Medicine, 2 Life Jackets' },
-    { id: 'REC-092', region: 'Sunamganj (Chatak)', coordinates: '25.0412° N, 91.6702° E', priority: 'HIGH', threat: 'Submerged market, elder isolation', suppliesNeeded: 'First Aid Kit, Food Rations' },
-    { id: 'REC-093', region: 'Kurigram (Ulipur)', coordinates: '25.6810° N, 89.6540° E', priority: 'NORMAL', threat: 'Water quality inspection request & dry food', suppliesNeeded: 'Turbidity check, Medicine' }
+    { id: 'REC-091', region: 'Sylhet (Gowainghat)', coordinates: '25.1054° N, 91.9803° E', priority: 'CRITICAL', threat: 'Flood rescue: 5 people stranded on rooftop', suppliesNeeded: 'Food, Medicine, 2 Life Jackets, Comms Beacon' },
+    { id: 'REC-092', region: 'Sunamganj (Chatak)', coordinates: '25.0412° N, 91.6702° E', priority: 'HIGH', threat: 'Fishery monitoring: hypoxia and ammonia warning in fish enclosures', suppliesNeeded: 'Oxygen testing kits, Comms Beacon' },
+    { id: 'REC-093', region: 'Kurigram (Ulipur)', coordinates: '25.6810° N, 89.6540° E', priority: 'NORMAL', threat: 'Water monitoring and logistics delivery for isolated farmers', suppliesNeeded: 'First Aid Kit, Food Rations' }
   ];
 
-  // Dispatch trigger animation
+  // Dynamically update sensor profiles when active alert region changes (prior to dispatch)
+  useEffect(() => {
+    if (isDispatched) return;
+    if (activeAlertIndex === 0) {
+      // Gowainghat: Flooded, muddy water
+      setWaterDepth(6.8);
+      setWaterTemp(26.2);
+      setTurbidity(34.8);
+      setDissolvedOxygen(4.8); // Slightly low oxygen due to debris
+      setWaterWQI(56); // Poor
+      setWaterPH(6.3);
+      setWaterTDS(390);
+      setAmmonia(0.04);
+      setAlkalinity(78);
+      setFishStress('WARNING');
+    } else if (activeAlertIndex === 1) {
+      // Chatak: Heavy fishery runoff / high organic waste
+      setWaterDepth(5.1);
+      setWaterTemp(27.5);
+      setTurbidity(58.2);
+      setDissolvedOxygen(3.4); // Hypoxia Alert!
+      setWaterWQI(38); // Critical
+      setWaterPH(5.8); // Acidic
+      setWaterTDS(490);
+      setAmmonia(0.12); // High Ammonia warning!
+      setAlkalinity(48);
+      setFishStress('CRITICAL');
+    } else {
+      // Ulipur: Relatively stable
+      setWaterDepth(3.2);
+      setWaterTemp(23.9);
+      setTurbidity(8.5);
+      setDissolvedOxygen(7.2); // Good oxygen
+      setWaterWQI(84); // Excellent
+      setWaterPH(7.4);
+      setWaterTDS(180);
+      setAmmonia(0.01);
+      setAlkalinity(125);
+      setFishStress('NORMAL');
+    }
+  }, [activeAlertIndex, isDispatched]);
+
+  // Dispatch trigger animation with integrated LiDAR collision avoidance detour
   const handleDispatch = () => {
     if (isDispatched) return;
     setIsDispatched(true);
     setTransitPercent(0);
     setEtaText('12 min');
+    setObstacleStatus('CLEAR');
+    setObstacleDistance(0);
+    setAvoidanceYawOffset(0);
     const target = rescueAlerts[activeAlertIndex];
     addNotification('warning', `DISPATCH: JolJan ASV route plotted to coordinates: [${target.coordinates}]. Heading out.`);
 
     const interval = setInterval(() => {
       setTransitPercent(prev => {
-        if (prev >= 100) {
+        const nextPercent = prev + 2;
+
+        if (nextPercent >= 100) {
           clearInterval(interval);
           setEtaText('ARRIVED');
-          addNotification('success', `JolJan ASV has successfully reached rescue location [${target.region}]. Stationing for cargo drop.`);
+          setObstacleStatus('CLEAR');
+          setObstacleDistance(0);
+          setAvoidanceYawOffset(0);
+          setThrusterThrottle(0);
+          addNotification('success', `JolJan ASV reached destination [${target.region}]. Holding station for cargo delivery.`);
           return 100;
         }
-        // Update environmental sensors dynamically during transit
-        setWaterDepth(parseFloat((3.2 + Math.random() * 2).toFixed(1)));
-        setWaterTemp(parseFloat((23.8 + Math.random() * 1.5).toFixed(1)));
-        setTurbidity(parseFloat((10 + Math.random() * 15).toFixed(1)));
-        setDissolvedOxygen(parseFloat((5.8 + Math.random() * 2).toFixed(1)));
-        setWaterWQI(Math.floor(70 + Math.random() * 18));
+
+        // Simulating the obstacle detour protocol
+        if (nextPercent >= 24 && nextPercent < 36) {
+          if (nextPercent === 24) {
+            addNotification('warning', 'LiDAR SCANNER: Submerged branch debris detected at 24m. Recalibrating route.');
+          }
+          setObstacleStatus('DETECTED');
+          const dist = Math.max(10, 24 - (nextPercent - 24) * 1.5);
+          setObstacleDistance(parseFloat(dist.toFixed(1)));
+          setThrusterThrottle(55); // Slow down
+        } else if (nextPercent >= 36 && nextPercent < 48) {
+          if (nextPercent === 36) {
+            addNotification('info', 'COLLISION AVOIDED: Autonomous detour initiated. Steer Yaw offset +22°, thrusters at 35%.');
+          }
+          setObstacleStatus('AVOIDING');
+          setObstacleDistance(10.5);
+          setAvoidanceYawOffset(22);
+          setThrusterThrottle(35); // Slow down further
+        } else if (nextPercent >= 48 && nextPercent < 60) {
+          if (nextPercent === 48) {
+            addNotification('success', 'COLLISION AVOIDED: Debris cleared. Resuming normal autopilot path.');
+          }
+          setObstacleStatus('PASSED');
+          setObstacleDistance(0);
+          setAvoidanceYawOffset(prevOffset => Math.max(0, prevOffset - 4));
+          setThrusterThrottle(85); // Back to speed
+        } else {
+          setObstacleStatus('CLEAR');
+          setObstacleDistance(0);
+          setAvoidanceYawOffset(0);
+          setThrusterThrottle(85);
+        }
+
+        // Add telemetry fluctuations during transit
+        setWaterDepth(prevDepth => parseFloat((prevDepth + (Math.random() * 0.4 - 0.2)).toFixed(1)));
+        setWaterTemp(prevTemp => parseFloat((prevTemp + (Math.random() * 0.2 - 0.1)).toFixed(1)));
+        setTurbidity(prevTurb => Math.max(1, parseFloat((prevTurb + (Math.random() * 2 - 1)).toFixed(1))));
+        setDissolvedOxygen(prevDO => Math.max(0.5, parseFloat((prevDO + (Math.random() * 0.2 - 0.1)).toFixed(1))));
+        setAmmonia(prevAm => Math.max(0.0, parseFloat((prevAm + (Math.random() * 0.01 - 0.005)).toFixed(3))));
         
         // Update sonar contours
         setSonarData(prevSonar => {
@@ -740,10 +857,10 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
         });
 
         // Set ETA based on percent
-        const remainMin = Math.ceil(((100 - prev) / 100) * 12);
+        const remainMin = Math.ceil(((100 - nextPercent) / 100) * 12);
         setEtaText(`${remainMin} min`);
 
-        return prev + 4;
+        return nextPercent;
       });
     }, 250);
   };
@@ -763,7 +880,8 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
       firstAid: 'First Aid Kit',
       foodPackets: 'Dry Food Ration Packet',
       medicine: 'Emergency Medicine Pack',
-      lifeJackets: 'Personal Flotation Device'
+      lifeJackets: 'Personal Flotation Device',
+      commsBeacon: 'Emergency Sat-Comms Beacon'
     };
 
     setDropMessage(`Releasing ${labelMap[item]}...`);
@@ -774,24 +892,131 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
     }, 2000);
   };
 
+  // Heading calculation based on yaw offset
+  const headingVal = isDispatched ? Math.round(145 + Math.sin(transitPercent * 0.5) * 3 + avoidanceYawOffset) : 145;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-sm md:text-base">
       
+      {/* Model Selector Panel */}
+      <div className="col-span-12 glass-panel p-5 border-white/5 rounded-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-neutral-900/20">
+        <div>
+          <h2 className="font-serif text-sm md:text-base uppercase tracking-wider text-white">JolJan Autonomous Surface Vehicle Command HUD</h2>
+          <p className="text-xs text-white/50 uppercase tracking-widest mt-1">Select vehicle model to calibrate sonar ranges, propulsion load coefficients, and cargo release solenoid arrays.</p>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <span className="font-serif text-xs uppercase tracking-widest text-white/50 whitespace-nowrap">Active ASV Model:</span>
+          <div className="flex border border-white/10 rounded-sm overflow-hidden p-0.5 bg-black/60 w-full md:w-auto">
+            <button
+              onClick={() => setAsvModel('1.0')}
+              className={`flex-1 md:flex-initial px-4 py-1.5 font-serif text-[11px] uppercase tracking-wider transition-all duration-300 ${
+                asvModel === '1.0' 
+                  ? 'bg-sky-500/20 border border-sky-500/30 text-sky-400 font-semibold' 
+                  : 'text-white/45 hover:text-white/85'
+              }`}
+            >
+              JolJan 1.0 (Heavy Duty)
+            </button>
+            <button
+              onClick={() => setAsvModel('mini')}
+              className={`flex-1 md:flex-initial px-4 py-1.5 font-serif text-[11px] uppercase tracking-wider transition-all duration-300 ${
+                asvModel === 'mini' 
+                  ? 'bg-sky-500/20 border border-sky-500/30 text-sky-400 font-semibold' 
+                  : 'text-white/45 hover:text-white/85'
+              }`}
+            >
+              JolJan Mini (Rapid Scout)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Physical Spec Sheet Overlay */}
+      <div className="col-span-12 grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="border border-white/5 p-3.5 rounded-sm bg-neutral-900/10">
+          <span className="text-[9px] uppercase tracking-widest text-white/40 font-serif block">Hull Configuration</span>
+          <span className="text-xs md:text-sm uppercase tracking-wider text-white font-medium mt-1 block">
+            {asvModel === '1.0' ? 'Catamaran Aluminum' : 'Carbon-Kevlar V-Hull'}
+          </span>
+        </div>
+        <div className="border border-white/5 p-3.5 rounded-sm bg-neutral-900/10">
+          <span className="text-[9px] uppercase tracking-widest text-white/40 font-serif block">Thruster Array</span>
+          <span className="text-xs md:text-sm uppercase tracking-wider text-white font-medium mt-1 block">
+            {asvModel === '1.0' ? '4x 500W Vectoring' : '2x 250W Jet Propulsors'}
+          </span>
+        </div>
+        <div className="border border-white/5 p-3.5 rounded-sm bg-neutral-900/10">
+          <span className="text-[9px] uppercase tracking-widest text-white/40 font-serif block">Operating Draft</span>
+          <span className="text-xs md:text-sm uppercase tracking-wider text-white font-medium mt-1 block">
+            {asvModel === '1.0' ? '0.35m (Medium Deep)' : '0.12m (Ultra-Shallow)'}
+          </span>
+        </div>
+        <div className="border border-white/5 p-3.5 rounded-sm bg-neutral-900/10">
+          <span className="text-[9px] uppercase tracking-widest text-white/40 font-serif block">Solar-Assisted Power</span>
+          <span className="text-xs md:text-sm uppercase tracking-wider text-emerald-400 font-semibold mt-1 block">
+            {asvModel === '1.0' ? 'ACTIVE // +42W' : 'ACTIVE // +15W'}
+          </span>
+        </div>
+        <div className="border border-white/5 p-3.5 rounded-sm bg-neutral-900/10 col-span-2 md:col-span-1">
+          <span className="text-[9px] uppercase tracking-widest text-white/40 font-serif block">Net Weight & Speed</span>
+          <span className="text-xs md:text-sm uppercase tracking-wider text-white font-medium mt-1 block">
+            {asvModel === '1.0' ? '140kg // 16 KT Max' : '38kg // 22 KT Max'}
+          </span>
+        </div>
+      </div>
+      
+      {/* Dynamic Warning Alert banners for Water Quality parameters */}
+      {(dissolvedOxygen < 4.0 || ammonia > 0.08 || fishStress === 'CRITICAL') && (
+        <div className="col-span-12 glass-panel border-red-500/40 bg-red-500/5 p-5 rounded-sm flex items-center justify-between animate-pulse">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+            <div className="font-serif text-xs md:text-sm uppercase tracking-wider text-white">
+              <strong className="text-red-400">CRITICAL ECO-ALERT DETECTED:</strong> 
+              {dissolvedOxygen < 4.0 && ' [DISSOLVED OXYGEN HYPOXIA CRITICAL]'}
+              {ammonia > 0.08 && ' [AMMONIA TOXICITY WARNING]'}
+              {fishStress === 'CRITICAL' && ' [ACUTE FISH STRESS LEVEL]'}
+              {' — Automated aeration injectors or supply drops recommended.'}
+            </div>
+          </div>
+          <span className="font-serif text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 uppercase rounded-sm">ACTIVE WARNING</span>
+        </div>
+      )}
+
       {/* LEFT COLUMN: SONAR, MAP, AND TRANSIT HUD */}
       <div className="lg:col-span-7 space-y-6">
         
         {/* HUD Camera Live Feed with water overlays */}
         <div className="relative border border-sky-500/20 rounded-sm aspect-video bg-black overflow-hidden group hover:border-sky-500/40 transition-all duration-500">
           <img 
-            src="/joljan_feed.png" 
-            alt="JolJan ASV Bow View" 
+            src={cameraView === 'rescue' ? '/joljan_feed.png' : '/fishermen_feed.png'} 
+            alt={cameraView === 'rescue' ? 'JolJan ASV Bow View' : 'Fisheries Camera Feed'} 
             className="absolute inset-0 w-full h-full object-cover opacity-85 filter contrast-110 saturate-50 brightness-75"
           />
+
+          {/* Camera View Switcher Overlay */}
+          <div className="absolute top-16 left-4 z-20 flex gap-1 bg-black/60 p-0.5 border border-white/10 rounded-sm">
+            <button
+              onClick={() => setCameraView('rescue')}
+              className={`px-2.5 py-1 text-[9px] md:text-xs uppercase tracking-widest font-serif transition-colors ${
+                cameraView === 'rescue' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Bow Rescue Cam
+            </button>
+            <button
+              onClick={() => setCameraView('fishery')}
+              className={`px-2.5 py-1 text-[9px] md:text-xs uppercase tracking-widest font-serif transition-colors ${
+                cameraView === 'fishery' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Fisheries Live Feed
+            </button>
+          </div>
 
           {/* HUD Overlay Lines */}
           <div className="absolute inset-x-0 top-0 p-4 bg-gradient-to-b from-black/85 to-transparent flex justify-between items-start text-[10px] md:text-xs font-serif tracking-widest text-sky-400 uppercase z-10">
             <div>
-              <span>CAM FEED: BOW_CAM_02 [REC_SURVEY]</span>
+              <span>CAM FEED: {cameraView === 'rescue' ? 'BOW_CAM_02 [REC_SURVEY]' : 'POND_CAM_03 [FISHERY_SCAN]'}</span>
               <br />
               <span className="text-white/50">DEPTH GAUGING: ACTIVE // GYRO: LEVEL</span>
             </div>
@@ -839,7 +1064,7 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
             <div className="text-[10px] md:text-xs font-serif tracking-widest text-white/60 uppercase">
               <span>GPS: {rescueAlerts[activeAlertIndex].coordinates}</span>
               <br />
-              <span>PROPULSION: 4x THRUSTERS VECTORING // BATTERY: 88.5%</span>
+              <span>PROPULSION: {asvModel === '1.0' ? '4x THRUSTERS VECTORING' : '2x JET PROPULSORS'} // BATTERY: 88.5%</span>
             </div>
 
             {isDispatched && (
@@ -916,6 +1141,120 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
           </div>
         </div>
 
+        {/* LiDAR Obstacle Sweep Card */}
+        <div className="glass-panel p-6 rounded-sm border-white/5 space-y-4">
+          <div className="flex justify-between items-center border-b border-white/5 pb-2">
+            <h3 className="font-serif text-xs md:text-sm lg:text-base uppercase tracking-wider text-white">
+              LiDAR Autonomous Obstacle Avoidance Scanner
+            </h3>
+            <span className="text-[9px] md:text-xs font-serif text-sky-400 uppercase tracking-widest">Forward Sweep</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+            {/* SVG LiDAR Sweep Sector */}
+            <div className="md:col-span-6 flex justify-center">
+              <div className="relative w-40 h-40 border-b border-white/20 flex items-end justify-center bg-neutral-950 overflow-hidden">
+                {/* Radar-like arc grid */}
+                <div className="absolute w-72 h-72 border border-white/5 rounded-full -bottom-36" />
+                <div className="absolute w-52 h-52 border border-white/5 rounded-full -bottom-26" />
+                <div className="absolute w-32 h-32 border border-white/5 rounded-full -bottom-16" />
+                
+                {/* Scanner radial lines */}
+                <div className="absolute h-36 w-[1px] bg-white/10 origin-bottom bottom-0 rotate-[-60deg]" />
+                <div className="absolute h-36 w-[1px] bg-white/10 origin-bottom bottom-0 rotate-[-30deg]" />
+                <div className="absolute h-36 w-[1px] bg-white/10 origin-bottom bottom-0" />
+                <div className="absolute h-36 w-[1px] bg-white/10 origin-bottom bottom-0 rotate-[30deg]" />
+                <div className="absolute h-36 w-[1px] bg-white/10 origin-bottom bottom-0 rotate-[60deg]" />
+
+                {/* Sweeping laser line */}
+                <div 
+                  className="absolute h-36 w-[1.5px] bg-sky-500/60 origin-bottom bottom-0 transition-transform duration-75 shadow-[0_0_10px_rgba(14,165,233,0.5)]"
+                  style={{ transform: `rotate(${(Math.sin(Date.now() / 400) * 60).toFixed(0)}deg)` }}
+                />
+
+                {/* Obstacle dots based on state */}
+                {obstacleStatus === 'DETECTED' && (
+                  <div 
+                    className="absolute w-3 h-3 bg-red-500 rounded-full animate-ping" 
+                    style={{ 
+                      bottom: `${(obstacleDistance / 30) * 140}px`, 
+                      left: 'calc(50% + 22px)' 
+                    }} 
+                  />
+                )}
+                {obstacleStatus === 'DETECTED' && (
+                  <div 
+                    className="absolute w-2.5 h-2.5 bg-red-500 rounded-full" 
+                    style={{ 
+                      bottom: `${(obstacleDistance / 30) * 140}px`, 
+                      left: 'calc(50% + 22px)' 
+                    }} 
+                  />
+                )}
+
+                {obstacleStatus === 'AVOIDING' && (
+                  <div 
+                    className="absolute w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" 
+                    style={{ 
+                      bottom: `${(obstacleDistance / 30) * 140}px`, 
+                      left: 'calc(50% + 38px)' 
+                    }} 
+                  />
+                )}
+
+                <span className="absolute text-[8px] font-serif text-white/45 uppercase tracking-widest bottom-2 left-2">YAW DEVIATION: {avoidanceYawOffset}°</span>
+                <span className="absolute text-[8px] font-serif text-sky-400/80 uppercase tracking-widest bottom-2 right-2">AUTO RECAL</span>
+              </div>
+            </div>
+
+            {/* Proximity Logs */}
+            <div className="md:col-span-6 space-y-2">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">LiDAR Hazard Evaluation</span>
+              
+              <div className="space-y-1.5">
+                <div className="border border-white/5 p-2 rounded-sm flex justify-between items-center text-[10px] md:text-xs font-serif uppercase tracking-widest bg-neutral-900/50">
+                  <span className="text-white/60">LiDAR State</span>
+                  <span className={`font-semibold ${
+                    obstacleStatus === 'DETECTED' ? 'text-red-400 animate-pulse' :
+                    obstacleStatus === 'AVOIDING' ? 'text-amber-400 animate-pulse' :
+                    obstacleStatus === 'PASSED' ? 'text-emerald-400' :
+                    'text-sky-400'
+                  }`}>
+                    {obstacleStatus}
+                  </span>
+                </div>
+
+                <div className="border border-white/5 p-2 rounded-sm flex justify-between items-center text-[10px] md:text-xs font-serif uppercase tracking-widest bg-neutral-900/50">
+                  <span className="text-white/60">Obstacle Proximity</span>
+                  <span className="text-white font-medium">{obstacleDistance > 0 ? `${obstacleDistance}m` : 'N/A'}</span>
+                </div>
+
+                <div className="border border-white/5 p-2 rounded-sm flex justify-between items-center text-[10px] md:text-xs font-serif uppercase tracking-widest bg-neutral-900/50">
+                  <span className="text-white/60">Dynamic Thruster Load</span>
+                  <span className="text-white font-medium">{thrusterThrottle}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Active collision warnings */}
+          {obstacleStatus === 'DETECTED' && (
+            <div className="border border-red-500/20 bg-red-500/5 p-3 rounded-sm text-[10px] md:text-xs uppercase tracking-wider text-red-400 font-serif leading-relaxed animate-pulse">
+              <strong>[COLLISION ALERT]</strong> Floating riverbed debris detected at {obstacleDistance}m on path angle +10°. Autopilot initiates safety detour.
+            </div>
+          )}
+          {obstacleStatus === 'AVOIDING' && (
+            <div className="border border-amber-500/20 bg-amber-500/5 p-3 rounded-sm text-[10px] md:text-xs uppercase tracking-wider text-amber-400 font-serif leading-relaxed">
+              <strong>[AVOIDANCE ENGAGED]</strong> Detouring around debris obstacle. Adjusted steering yaw to {headingVal}° and throttled thrusters to 35%.
+            </div>
+          )}
+          {obstacleStatus === 'PASSED' && (
+            <div className="border border-emerald-500/20 bg-emerald-500/5 p-3 rounded-sm text-[10px] md:text-xs uppercase tracking-wider text-emerald-400 font-serif leading-relaxed">
+              <strong>[PATH RESTORED]</strong> Obstacle successfully bypassed. Heading returned to standard route ({headingVal}°). Thrusters returned to full speed.
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* RIGHT COLUMN: ALERTS LIST, ENVIRONMENT PROFILE, CARGO MONITOR */}
@@ -944,7 +1283,7 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
                 <div className="flex justify-between items-center text-xs font-serif uppercase tracking-widest">
                   <span className="font-bold text-white">{alert.region}</span>
                   <span className={`px-2 py-0.5 rounded-sm text-[9px] md:text-xs font-semibold ${
-                    alert.priority === 'CRITICAL' ? 'bg-red-500/10 border border-red-500/30 text-red-400' :
+                    alert.priority === 'CRITICAL' ? 'bg-red-500/10 border border-red-500/30 text-red-400 font-bold' :
                     alert.priority === 'HIGH' ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400' :
                     'bg-white/5 border border-white/10 text-white/50'
                   }`}>
@@ -965,34 +1304,126 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
           </div>
         </div>
 
-        {/* Underwater Environment Profiler */}
+        {/* Underwater & Fisheries Water Quality Profiler */}
         <div className="glass-panel p-6 rounded-sm border-white/5 space-y-4">
-          <h3 className="font-serif text-xs md:text-sm lg:text-base uppercase tracking-wider text-white border-b border-white/5 pb-2">
-            Underwater Environmental Profiler & Sonar Scan
-          </h3>
+          <div className="flex justify-between items-center border-b border-white/5 pb-2">
+            <h3 className="font-serif text-xs md:text-sm lg:text-base uppercase tracking-wider text-white">
+              Water Quality Profiler & Fisheries Analytics
+            </h3>
+            <span className="text-[9px] md:text-xs font-serif text-sky-400 tracking-wider uppercase font-semibold">ASV SONAR MATRIX</span>
+          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border border-white/5 p-4 rounded-sm space-y-1.5">
-              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Water Depth</span>
-              <div className="text-xl md:text-2xl font-serif text-white font-medium">{waterDepth} M</div>
+          {/* Top indices WQI score & Fish Stress */}
+          <div className="grid grid-cols-2 gap-4 pb-2 border-b border-white/5">
+            <div className="border border-white/5 p-3 rounded-sm text-center">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block mb-1">Water Quality Index (WQI)</span>
+              <span className={`text-2xl md:text-3xl font-serif font-bold ${
+                waterWQI >= 80 ? 'text-emerald-400' :
+                waterWQI >= 50 ? 'text-yellow-400' :
+                'text-red-400'
+              }`}>
+                {waterWQI}
+              </span>
+              <span className="text-[9px] md:text-xs text-white/50 block font-serif uppercase tracking-wider mt-1">
+                {waterWQI >= 80 ? 'Excellent' : waterWQI >= 50 ? 'Medium / Poor' : 'Critical Hazard'}
+              </span>
             </div>
-            <div className="border border-white/5 p-4 rounded-sm space-y-1.5">
-              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Water Temp</span>
-              <div className="text-xl md:text-2xl font-serif text-white font-medium">{waterTemp} °C</div>
-            </div>
-            <div className="border border-white/5 p-4 rounded-sm space-y-1.5">
-              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Turbidity (NTU)</span>
-              <div className="text-xl md:text-2xl font-serif text-white font-medium">{turbidity} NTU</div>
-            </div>
-            <div className="border border-white/5 p-4 rounded-sm space-y-1.5">
-              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Dissolved Oxygen</span>
-              <div className="text-xl md:text-2xl font-serif text-white font-medium">{dissolvedOxygen} mg/L</div>
+
+            <div className="border border-white/5 p-3 rounded-sm text-center">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block mb-1">Fish Stress Indicator</span>
+              <span className={`text-xl md:text-2xl font-serif font-bold uppercase ${
+                fishStress === 'NORMAL' ? 'text-emerald-400' :
+                fishStress === 'WARNING' ? 'text-yellow-400 animate-pulse' :
+                'text-red-400 animate-bounce'
+              }`}>
+                {fishStress}
+              </span>
+              <span className="text-[9px] md:text-xs text-white/50 block font-serif uppercase tracking-wider mt-2">
+                {fishStress === 'NORMAL' ? 'Optimal Environment' : fishStress === 'WARNING' ? 'Elevated Respiration' : 'Acute Hypoxia Threat'}
+              </span>
             </div>
           </div>
 
+          {/* Core chemical sensors grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1 relative">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">pH Level</span>
+              <div className="text-xl font-serif text-white font-medium">{waterPH}</div>
+              <span className="text-[8px] font-serif text-white/40 block">Target: 6.5 - 8.0</span>
+              {(parseFloat(waterPH) < 6.0 || parseFloat(waterPH) > 8.5) && (
+                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 animate-ping" />
+              )}
+            </div>
+
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1 relative">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Dissolved Oxygen</span>
+              <div className="text-xl font-serif text-white font-medium" style={{ color: dissolvedOxygen < 4.0 ? '#ef4444' : '#ffffff' }}>
+                {dissolvedOxygen} <span className="text-xs font-serif text-white/50">mg/L</span>
+              </div>
+              <span className="text-[8px] font-serif text-white/40 block">Target: &gt; 5.0 mg/L</span>
+              {dissolvedOxygen < 4.0 && (
+                <span className="absolute top-2 right-2 text-[6px] bg-red-600 px-1 border border-red-400 text-white rounded-sm font-bold tracking-tighter animate-pulse">HYPOXIA</span>
+              )}
+            </div>
+
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1 relative">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Ammonia ($NH_3$)</span>
+              <div className="text-xl font-serif text-white font-medium" style={{ color: ammonia > 0.05 ? '#f59e0b' : '#ffffff' }}>
+                {ammonia} <span className="text-xs font-serif text-white/50">mg/L</span>
+              </div>
+              <span className="text-[8px] font-serif text-white/40 block">Target: &lt; 0.05 mg/L</span>
+              {ammonia > 0.05 && (
+                <span className="absolute top-2 right-2 text-[6px] bg-amber-600 px-1 border border-amber-400 text-white rounded-sm font-bold tracking-tighter animate-pulse">TOXIC</span>
+              )}
+            </div>
+
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Total TDS</span>
+              <div className="text-xl font-serif text-white font-medium">{waterTDS} <span className="text-xs font-serif text-white/50">ppm</span></div>
+              <span className="text-[8px] font-serif text-white/40 block">Target: &lt; 500 ppm</span>
+            </div>
+
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Alkalinity</span>
+              <div className="text-xl font-serif text-white font-medium">{alkalinity} <span className="text-xs font-serif text-white/50">ppm</span></div>
+              <span className="text-[8px] font-serif text-white/40 block">Target: 50-150 ppm</span>
+            </div>
+
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Turbidity</span>
+              <div className="text-xl font-serif text-white font-medium">{turbidity} <span className="text-xs font-serif text-white/50">NTU</span></div>
+              <span className="text-[8px] font-serif text-white/40 block">Target: &lt; 25 NTU</span>
+            </div>
+
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Depth & Temperature</span>
+              <div className="text-base font-serif text-white font-semibold">
+                {waterDepth}M // {waterTemp}°C
+              </div>
+              <span className="text-[8px] font-serif text-white/40 block">Depth rating: {asvModel === '1.0' ? '30m' : '10m'}</span>
+            </div>
+
+            <div className="border border-white/5 p-3.5 rounded-sm space-y-1">
+              <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Solar Assist Power</span>
+              <div className="text-base font-serif text-emerald-400 font-semibold">
+                ACTIVE // {asvModel === '1.0' ? '+42W' : '+15W'}
+              </div>
+              <span className="text-[8px] font-serif text-emerald-500/70 block">{asvModel === '1.0' ? 'Monocrystalline grid' : 'Flexible solar skin'}</span>
+            </div>
+          </div>
+
+          {/* Action button to open Water Quality report overlay */}
+          <button 
+            onClick={() => setReportOpen(true)}
+            className="w-full text-xs font-serif uppercase tracking-widest text-sky-400 border border-sky-500/20 hover:border-sky-500/50 py-3 bg-sky-500/5 hover:bg-sky-500/10 rounded-sm transition-all duration-300 flex items-center justify-center gap-1.5"
+          >
+            <List className="w-4 h-4" />
+            Generate Fisheries WQ Report
+          </button>
+
           {/* Sonar rolling scanner chart */}
           <div className="space-y-2.5 border border-white/5 p-4 rounded-sm">
-            <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Sonar Terrain Profile (Bottom Contour)</span>
+            <span className="text-[9px] md:text-xs font-serif text-white/45 uppercase tracking-widest block">Sonar Bottom Contour Survey Scan</span>
             
             {/* Custom SVG line for bottom terrain */}
             <div className="h-20 flex items-end w-full">
@@ -1013,8 +1444,8 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
               </svg>
             </div>
             <div className="flex justify-between text-[8px] md:text-[9px] font-serif uppercase tracking-widest text-white/40">
-              <span>SCANNER RANGE: 50M</span>
-              <span>OBSTACLE CLASSIFICATION: NONE DETECTED</span>
+              <span>SCANNER RANGE: {asvModel === '1.0' ? '50M' : '20M'} // 360° LIDAR SLAM</span>
+              <span>OBSTACLES: {obstacleStatus === 'DETECTED' || obstacleStatus === 'AVOIDING' ? 'DETOUR ENGAGED' : 'NONE IN PATH'}</span>
             </div>
           </div>
         </div>
@@ -1032,7 +1463,7 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
             <div className="border border-white/5 p-4 rounded-sm space-y-3">
               <div className="flex justify-between text-xs font-serif uppercase tracking-widest text-white/60">
                 <span>First Aid Kits</span>
-                <span className="text-white font-bold">{cargoInventory.firstAid}</span>
+                <span className="text-white font-bold">{cargoInventory.firstAid} / {maxCargo.firstAid}</span>
               </div>
               <button
                 onClick={() => handleReleaseCargo('firstAid')}
@@ -1045,7 +1476,7 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
             <div className="border border-white/5 p-4 rounded-sm space-y-3">
               <div className="flex justify-between text-xs font-serif uppercase tracking-widest text-white/60">
                 <span>Food Packets</span>
-                <span className="text-white font-bold">{cargoInventory.foodPackets}</span>
+                <span className="text-white font-bold">{cargoInventory.foodPackets} / {maxCargo.foodPackets}</span>
               </div>
               <button
                 onClick={() => handleReleaseCargo('foodPackets')}
@@ -1058,7 +1489,7 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
             <div className="border border-white/5 p-4 rounded-sm space-y-3">
               <div className="flex justify-between text-xs font-serif uppercase tracking-widest text-white/60">
                 <span>Emergency Medicine</span>
-                <span className="text-white font-bold">{cargoInventory.medicine}</span>
+                <span className="text-white font-bold">{cargoInventory.medicine} / {maxCargo.medicine}</span>
               </div>
               <button
                 onClick={() => handleReleaseCargo('medicine')}
@@ -1071,7 +1502,7 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
             <div className="border border-white/5 p-4 rounded-sm space-y-3">
               <div className="flex justify-between text-xs font-serif uppercase tracking-widest text-white/60">
                 <span>Life Jackets</span>
-                <span className="text-white font-bold">{cargoInventory.lifeJackets}</span>
+                <span className="text-white font-bold">{cargoInventory.lifeJackets} / {maxCargo.lifeJackets}</span>
               </div>
               <button
                 onClick={() => handleReleaseCargo('lifeJackets')}
@@ -1080,10 +1511,146 @@ function JoljanDashboard({ addNotification, notifications, onNavigateProject }) 
                 Release Jacket
               </button>
             </div>
+
+            <div className="border border-white/5 p-4 rounded-sm space-y-3 col-span-2">
+              <div className="flex justify-between text-xs font-serif uppercase tracking-widest text-white/60">
+                <span>Satellite Comms Beacon / transponder</span>
+                <span className="text-white font-bold">{cargoInventory.commsBeacon} / {maxCargo.commsBeacon}</span>
+              </div>
+              <button
+                onClick={() => handleReleaseCargo('commsBeacon')}
+                className="w-full border border-white/10 bg-white/5 hover:border-sky-500/40 py-2 px-3 rounded-sm font-serif text-[10px] md:text-xs uppercase tracking-wider text-white hover:text-sky-400 transition-colors"
+              >
+                Release Satellite Beacon
+              </button>
+            </div>
           </div>
         </div>
 
       </div>
+
+      {/* Environmental & Fisheries Analysis Report Modal */}
+      {reportOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="glass-panel border-sky-500/30 bg-neutral-950 p-6 md:p-8 rounded-sm max-w-2xl w-full space-y-6 relative max-h-[85vh] overflow-y-auto">
+            
+            {/* Close button */}
+            <button 
+              onClick={() => setReportOpen(false)}
+              className="absolute top-4 right-4 text-white/50 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1 text-xs uppercase tracking-widest font-serif rounded-sm"
+            >
+              Close
+            </button>
+
+            {/* Report Header */}
+            <div className="border-b border-white/10 pb-4">
+              <span className="font-serif text-[10px] uppercase tracking-[0.2em] text-sky-400">Autonomous Surface Vehicle Analytics</span>
+              <h2 className="text-xl md:text-2xl font-serif uppercase tracking-widest text-white mt-1">Water Quality & Fisheries Health Report</h2>
+              <p className="text-xs text-white/40 uppercase tracking-wider mt-1 font-mono">Location: {rescueAlerts[activeAlertIndex].region} // Status: Analyzed</p>
+            </div>
+
+            {/* Metrics Checklist Table */}
+            <div className="space-y-3.5">
+              <h3 className="font-serif text-xs md:text-sm uppercase tracking-wider text-white">1. Evaluated Water Parameters</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="border border-white/5 p-3 rounded-sm bg-black/40">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 block font-serif">Water Quality Index</span>
+                  <span className={`text-lg font-serif font-bold ${waterWQI >= 80 ? 'text-emerald-400' : waterWQI >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{waterWQI}</span>
+                  <span className="text-[8px] uppercase tracking-wider text-white/30 block mt-0.5">{waterWQI >= 80 ? 'Excellent' : waterWQI >= 50 ? 'Medium/Poor' : 'Critical Hazard'}</span>
+                </div>
+                <div className="border border-white/5 p-3 rounded-sm bg-black/40">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 block font-serif">Dissolved Oxygen</span>
+                  <span className={`text-lg font-serif font-bold ${dissolvedOxygen < 4.0 ? 'text-red-400' : 'text-white'}`}>{dissolvedOxygen} mg/L</span>
+                  <span className="text-[8px] uppercase tracking-wider text-white/30 block mt-0.5">Target: &gt; 5.0 mg/L</span>
+                </div>
+                <div className="border border-white/5 p-3 rounded-sm bg-black/40">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 block font-serif">Ammonia ($NH_3$)</span>
+                  <span className={`text-lg font-serif font-bold ${ammonia > 0.05 ? 'text-amber-400' : 'text-white'}`}>{ammonia} mg/L</span>
+                  <span className="text-[8px] uppercase tracking-wider text-white/30 block mt-0.5">Target: &lt; 0.05 mg/L</span>
+                </div>
+                <div className="border border-white/5 p-3 rounded-sm bg-black/40">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 block font-serif">pH Level</span>
+                  <span className="text-lg font-serif font-bold text-white">{waterPH}</span>
+                  <span className="text-[8px] uppercase tracking-wider text-white/30 block mt-0.5">Target: 6.5 - 8.0</span>
+                </div>
+                <div className="border border-white/5 p-3 rounded-sm bg-black/40">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 block font-serif">Turbidity</span>
+                  <span className="text-lg font-serif font-bold text-white">{turbidity} NTU</span>
+                  <span className="text-[8px] uppercase tracking-wider text-white/30 block mt-0.5">Target: &lt; 25 NTU</span>
+                </div>
+                <div className="border border-white/5 p-3 rounded-sm bg-black/40">
+                  <span className="text-[9px] uppercase tracking-widest text-white/40 block font-serif">Fish Stress level</span>
+                  <span className={`text-lg font-serif font-bold ${fishStress === 'NORMAL' ? 'text-emerald-400' : fishStress === 'WARNING' ? 'text-yellow-400' : 'text-red-400'}`}>{fishStress}</span>
+                  <span className="text-[8px] uppercase tracking-wider text-white/30 block mt-0.5">Biological Stress index</span>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Diagnostics & Fisheries Health Analysis */}
+            <div className="space-y-3">
+              <h3 className="font-serif text-xs md:text-sm uppercase tracking-wider text-white">2. AI Environmental Remediation Action Plan</h3>
+              <div className="border border-white/10 p-4.5 rounded-sm bg-sky-500/5 space-y-3 text-xs md:text-sm font-serif leading-relaxed text-white/80">
+                {activeAlertIndex === 0 && (
+                  <>
+                    <p>
+                      <strong className="text-sky-400 uppercase tracking-widest block mb-1">Observation (Sylhet Floodwater):</strong> High organic turbidity ({turbidity} NTU) and slightly acidic runoff pH ({waterPH}) due to flood debris. Dissolved Oxygen is close to lower limits ({dissolvedOxygen} mg/L).
+                    </p>
+                    <p>
+                      <strong className="text-sky-400 uppercase tracking-widest block mb-1">Recommended Remediation Action:</strong>
+                      <br />
+                      1. Apply agricultural limestone (Calcium Carbonate) at 150 kg/hectare near fish gates to buffer floodwater acidity.
+                      <br />
+                      2. Instruct upstream agricultural blocks to delay chemical fertilizer dispersion, preventing toxic field runoff into primary waterways.
+                    </p>
+                  </>
+                )}
+                {activeAlertIndex === 1 && (
+                  <>
+                    <p>
+                      <strong className="text-red-400 uppercase tracking-widest block mb-1">Critical Observation (Chatak Fishery Block):</strong> High organic runoff has triggered critical toxic ammonia levels ({ammonia} mg/L) alongside severe hypoxia ({dissolvedOxygen} mg/L). The fish stress index is CRITICAL, indicating acute asphyxiation risks.
+                    </p>
+                    <p>
+                      <strong className="text-red-400 uppercase tracking-widest block mb-1">Immediate Remediation Action Plan:</strong>
+                      <br />
+                      1. <strong className="text-white">Activate Aeration Systems:</strong> Deploy mechanical aerators immediately to bring Dissolved Oxygen levels back above 5.0 mg/L.
+                      <br />
+                      2. <strong className="text-white">Reduce Feed Load:</strong> Stop artificial feeding for 48 hours to minimize metabolic waste and ammonia excretion.
+                      <br />
+                      3. <strong className="text-white">Pond Water Exchange:</strong> Flush 20% of the pond volume with fresh deep-well water if surrounding inlets are clear of mud sludge.
+                    </p>
+                  </>
+                )}
+                {activeAlertIndex === 2 && (
+                  <>
+                    <p>
+                      <strong className="text-emerald-400 uppercase tracking-widest block mb-1">Observation (Ulipur Waterway):</strong> Clean riverway parameters. WQI score ({waterWQI}) is excellent, turbidity ({turbidity} NTU) is minimal, and Dissolved Oxygen is stable ({dissolvedOxygen} mg/L). Fish stress is Normal.
+                    </p>
+                    <p>
+                      <strong className="text-emerald-400 uppercase tracking-widest block mb-1">Recommended Action Plan:</strong>
+                      <br />
+                      1. Continue scheduled humanitarian deliveries. No environmental modifications are required.
+                      <br />
+                      2. Maintain baseline monitoring frequency.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Print / Export Actions */}
+            <div className="flex justify-between items-center border-t border-white/10 pt-4 text-xs font-serif uppercase tracking-widest">
+              <span className="text-white/40">Report ID: WQ-JOLJAN-{activeAlertIndex}-2026</span>
+              <button 
+                onClick={() => window.print()}
+                className="px-4 py-2 border border-white/20 hover:border-white/50 hover:bg-white/5 text-white rounded-sm transition-all"
+              >
+                Print Report
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      )}
 
     </div>
   );
