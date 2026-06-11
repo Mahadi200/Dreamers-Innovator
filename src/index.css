@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-black text-white font-sans antialiased overflow-x-hidden selection:bg-white selection:text-black;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-widest uppercase;
+  }
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+/* Glassmorphism panel styling */
+.glass-panel {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.text-glow {
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+}
+
+/* Smooth Scrolling */
+html {
+  font-size: 18px;
+  scroll-behavior: smooth;
+}
+
+/* Typography spacing customizer */
+.serif-header {
+  font-family: 'Times New Roman', Georgia, serif;
+  letter-spacing: 0.15em;
+}
